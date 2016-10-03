@@ -15,3 +15,10 @@ There can be one or more game servers at any point in time. When a game server c
 
 ## Why go through all this trouble just for a MUD?
 I'm doing this for fun. Using this type of set up, the MUD could potentially handle hundreds of thousands of simultaneous connections, however, that will never be the case for a MUD. I think a big win here is the ability to provide rolling updates without having to restart the monolith server.
+
+## Local Development
+The best way to run this locally is to use docker containers for the third-party services (Zookeeper, Redis, Mongo).
+
+Redis:
+
+    docker run --name hamud-redis -d -P redis
