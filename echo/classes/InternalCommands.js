@@ -14,15 +14,19 @@ class InternalCommands {
 
     if(internalCommand.toLowerCase() === 'gameservers') {
       return this.showGameServers();
-    } else if(internalCommand.toLowerCase().split(' ')[0] === 'add') {
-      return this.addGameServer(internalCommand.substr(4));
+    } else if(internalCommand.toLowerCase() === 'connections') {
+      return this.showCurrentActiveConnections();
     }  else {
       return { processed: false };
     }
   }
 
   showGameServers() {
-    return { processed: true, message: 'Game servers!' };
+    return { processed: true, message: this.echo.gameServerManager.getGameServerList() };
+  }
+
+  showCurrentActiveConnections() {
+    return { processed: true, message: `There are currently ${this.echo.telnetServer.getTotalActiveConnections()} active connections on this echo server.` };
   }
 
   addGameServer(hostname) {

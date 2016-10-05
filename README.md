@@ -21,4 +21,8 @@ The best way to run this locally is to use docker containers for the third-party
 
 Redis:
 
-    docker run --name hamud-redis -d -P redis
+    docker run --name hamud-redis -d -p 6379:6379 redis
+
+Mongo:
+
+    docker run --name hamud-mongo -d -p 27017:27017 mongo

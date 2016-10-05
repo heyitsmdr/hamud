@@ -41,7 +41,9 @@ class TelnetServer {
     if(internalCommandProcessed.processed === true) {
       socket.write(internalCommandProcessed.message)
     } else {
-      console.log('Not a processed internal command..');
+      if(this.echoServer.gameServerManager.handlePlayerCommand(socket.playerId, command) === false) {
+        socket.write('There are no game servers available to process your command. Please try again soon.');
+      }
     }
   }
 
@@ -75,6 +77,19 @@ class TelnetServer {
 
     // Let us know that the conncetion is now closed
     this.echoServer.logger.info(`Socket connection closed with assigned ID: ${socket.playerId} [${sockets.length}]`);
+  }
+
+  getTotalActiveConnections() {
+    return sockets.length;
+  }
+
+  sendToPlayer(playerId, text) {
+    for(let i = 0; i < sockets.length; i++) {
+      if(sockets[i].playerId === playerId) {
+        sockets[i].write(text);
+        break;
+      }
+    }
   }
 }
 

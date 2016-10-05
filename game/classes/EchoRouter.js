@@ -1,51 +1,39 @@
 var redis = require('redis');
 var echoServers = [];
 var echoPool = [];
-var redisClient = null;
 
 class EchoRouter {
   constructor(GameServer) {
     this.game = GameServer;
   }
 
-  connectRedis() {
-    return new Promise(resolve => {
-      redisClient = redis.createClient();
-      redisClient.on('connect', () => {
-        this.game.logger.info(`Connection to Redis successful!`);
-        resolve();
-      });
-      redisClient.on('error', e => {
-        this.game.logger.error(e);
-      });
-    });
-  }
-
   connect() {
-    this.connectRedis().then(() => {
-      // Get a pool of servers
-      if(process.env.ECHO_SERVERS) {
-        let echoServerArray = process.env.ECHO_SERVERS.split(',');
-        echoServers = echoServerArray;
-      } else {
-        echoServers = ['localhost:2442'];
-      }
+    // Get a pool of servers
+    if(process.env.ECHO_SERVERS) {
+      let echoServerArray = process.env.ECHO_SERVERS.split(',');
+      echoServers = echoServerArray;
+    } else {
+      echoServers = ['localhost:2442'];
+    }
 
-      // Create connections to all of them
-      echoServers.forEach(echoServer => {
-        let echoio = require('socket.io-client');
+    // Create connections to all of them
+    echoServers.forEach(echoServer => {
+      let echoio = require('socket.io-client');
 
-        let echoConnection = echoio.connect(`http://${echoServer}`);
+      let echoConnection = echoio.connect(`http://${echoServer}`);
 
-        this.game.logger.info(`Attempting to connect to echo server ${echoServer}`);
+      this.game.logger.info(`Attempting to connect to echo server ${echoServer}`);
 
-        echoConnection.on('connect', () => this.handleEchoConnection(echoServer));
-        echoConnection.on('disconnect', () => this.handleEchoDisconncetion(echoServer));
+      echoConnection.on('connect', () => this.handleEchoConnection(echoServer));
+      echoConnection.on('disconnect', () => this.handleEchoDisconnection(echoServer));
+      echoConnection.on('ECHO_ID', data => this.handleEchoId(echoServer, data));
+      echoConnection.on('PLAYER_COMMAND', data => this.handlePlayerCommand(echoServer, data));
 
-        echoPool.push({
-          hostname: echoServer.split(':')[0],
-          socket: echoConnection
-        });
+      echoPool.push({
+        host: echoServer,
+        hostname: echoServer.split(':')[0],
+        socket: echoConnection,
+        id: null
       });
     });
   }
@@ -58,14 +46,33 @@ class EchoRouter {
     this.game.logger.info(`Connection has been dropped to the echo server (${echoServer}), will try reconnecting..`);
   }
 
-  sendToId(echoId, text) {
-    let echoServerId = redisClient.get(echoId);
-
+  handleEchoId(echoServer, echoId) {
     echoPool.forEach(echo => {
-      
+      if(echo.host === echoServer) {
+        echo.id = echoId;
+      }
     });
 
-    console.log(echoServerId);
+    this.game.logger.info(`Echo server (${echoServer}) identified themselves as: ${echoId}`);
+  }
+
+  handlePlayerCommand(echoServer, data) {
+    this.game.logger.info(`Player ${data.playerId} used command: ${data.command}`);
+    this.game.commandProcessor.processCommand(data.playerId, data.command);
+  }
+
+  sendToId(playerId, text) {
+    // Get the echo server that this player is connected to
+    this.game.redisClient.get(playerId).then(echoServerId => {
+      echoPool.forEach(echo => {
+        if(echo.id === echoServerId) {
+          echo.socket.emit('TEXT_TO_PLAYER', {
+            playerId: playerId,
+            text: text
+          });
+        }
+      });
+    });
   }
 }
 
